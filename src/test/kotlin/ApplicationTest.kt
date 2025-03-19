@@ -1,5 +1,6 @@
 package demircandemir.com
 
+import demircandemir.com.demircandemir.com.module
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
