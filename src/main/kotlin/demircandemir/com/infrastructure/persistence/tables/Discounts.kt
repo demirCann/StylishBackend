@@ -4,7 +4,7 @@ import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.javatime.datetime
 import java.time.LocalDateTime
 
-object Discounts : IntIdTable("DISCOUNT") {
+object Discounts : IntIdTable("DISCOUNTS") {
     val discountCode = varchar("discount_code", 50).uniqueIndex()
     val discountRate = decimal("discount_rate", 5, 2)
     val minCartAmount = decimal("min_cart_amount", 10, 2).default(0.toBigDecimal())

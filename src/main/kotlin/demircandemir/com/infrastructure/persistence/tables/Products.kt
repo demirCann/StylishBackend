@@ -1,10 +1,10 @@
-package demircandemir.com.demircandemir.com.infrastructure.persistence.tables
+package demircandemir.com.infrastructure.persistence.tables
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.javatime.datetime
 import java.time.LocalDateTime
 
-object Products : IntIdTable("PRODUCT") {
+object Products : IntIdTable("PRODUCTS") {
     val productName = varchar("product_name", 255)
     val description = text("description").nullable()
     val price = decimal("price", 10, 2)

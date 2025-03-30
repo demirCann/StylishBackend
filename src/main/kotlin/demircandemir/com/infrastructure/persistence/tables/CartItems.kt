@@ -1,8 +1,8 @@
-package demircandemir.com.demircandemir.com.infrastructure.persistence.tables
+package demircandemir.com.infrastructure.persistence.tables
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 
-object CartItems : IntIdTable("CART_ITEM") {
+object CartItems : IntIdTable("CART_ITEMS") {
     val cartId = reference("cart_id", Carts)
     val productId = reference("product_id", Products)
     val quantity = integer("quantity").default(1)

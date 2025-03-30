@@ -1,8 +1,8 @@
-package demircandemir.com.demircandemir.com.infrastructure.persistence.tables
+package demircandemir.com.infrastructure.persistence.tables
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 
-object ProductDetails : IntIdTable("PRODUCT_DETAIL") {
+object ProductDetails : IntIdTable("PRODUCT_DETAILS") {
     val productId = reference("product_id", Products)
     val color = varchar("color", 50).nullable()
     val size = varchar("size", 20).nullable()

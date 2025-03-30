@@ -1,10 +1,10 @@
-package demircandemir.com.demircandemir.com.infrastructure.persistence.tables
+package demircandemir.com.infrastructure.persistence.tables
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.javatime.datetime
 import java.time.LocalDateTime
 
-object Orders : IntIdTable("ORDER") {
+object Orders : IntIdTable("ORDERS") {
     val userId = reference("user_id", Users)
     val addressId = reference("address_id", Addresses)
     val totalAmount = decimal("total_amount", 10, 2)
