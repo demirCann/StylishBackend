@@ -1,10 +1,10 @@
-package demircandemir.com.demircandemir.com.infrastructure.persistence.tables
+package demircandemir.com.infrastructure.persistence.tables
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.javatime.datetime
 import java.time.LocalDateTime
 
-object Reviews : IntIdTable("REVIEW") {
+object Reviews : IntIdTable("REVIEWS") {
     val productId = reference("product_id", Products)
     val userId = reference("user_id", Users)
     val rating = integer("rating").check { it.between(1, 5) }

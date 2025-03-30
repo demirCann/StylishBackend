@@ -1,9 +1,8 @@
-package demircandemir.com.demircandemir.com.infrastructure.persistence.tables
+package demircandemir.com.infrastructure.persistence.tables
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 
-
-object Addresses : IntIdTable("ADDRESS") {
+object Addresses : IntIdTable("ADDRESSES") {
     val userId = reference("user_id", Users)
     val addressTitle = varchar("address_title", 50)
     val address = varchar("address", 255)

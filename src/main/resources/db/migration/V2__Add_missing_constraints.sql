@@ -10,21 +10,23 @@ BEGIN
 END $$;
 
 -- Ensure all tables have proper indexes
-CREATE INDEX IF NOT EXISTS idx_product_updated ON "PRODUCT" (date_added);
-CREATE INDEX IF NOT EXISTS idx_cart_updated ON "CART" (updated_at);
-CREATE INDEX IF NOT EXISTS idx_order_date ON "ORDER" (order_date);
-CREATE INDEX IF NOT EXISTS idx_review_date ON "REVIEW" (review_date);
+CREATE INDEX IF NOT EXISTS idx_product_updated ON "PRODUCTS" (date_added);
+CREATE INDEX IF NOT EXISTS idx_cart_updated ON "CARTS" (updated_at);
+CREATE INDEX IF NOT EXISTS idx_order_date ON "ORDERS" (order_date);
+CREATE INDEX IF NOT EXISTS idx_review_date ON "REVIEWS" (review_date);
 
 -- Add any missing foreign key constraints
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_cart_item_size') THEN
-        ALTER TABLE "CART_ITEM" ADD CONSTRAINT fk_cart_item_size
-        FOREIGN KEY (size_id) REFERENCES "SIZE" (id) ON DELETE SET NULL;
+ALTER TABLE "CART_ITEMS"
+    ADD CONSTRAINT fk_cart_item_size
+        FOREIGN KEY (size_id) REFERENCES "SIZES" (id) ON DELETE SET NULL;
     END IF;
     
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_cart_item_color') THEN
-        ALTER TABLE "CART_ITEM" ADD CONSTRAINT fk_cart_item_color
-        FOREIGN KEY (color_id) REFERENCES "COLOR" (id) ON DELETE SET NULL;
+ALTER TABLE "CART_ITEMS"
+    ADD CONSTRAINT fk_cart_item_color
+        FOREIGN KEY (color_id) REFERENCES "COLORS" (id) ON DELETE SET NULL;
     END IF;
 END $$; 

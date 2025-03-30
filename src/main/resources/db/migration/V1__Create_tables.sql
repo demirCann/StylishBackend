@@ -3,7 +3,7 @@ DO $$
 BEGIN
     -- Drop existing constraints to avoid duplication errors
     IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_email_unique') THEN
-        ALTER TABLE "USER" DROP CONSTRAINT user_email_unique;
+ALTER TABLE "USERS" DROP CONSTRAINT user_email_unique;
     END IF;
     
     -- Check if order_status type exists and create it if it doesn't
@@ -12,8 +12,9 @@ BEGIN
     END IF;
 END $$;
 
--- Create USER table
-CREATE TABLE IF NOT EXISTS "USER" (
+-- Create USERS table
+CREATE TABLE IF NOT EXISTS "USERS"
+(
     id SERIAL PRIMARY KEY,
     email VARCHAR(100) NOT NULL,
     password VARCHAR(255) NOT NULL,
@@ -25,35 +26,45 @@ CREATE TABLE IF NOT EXISTS "USER" (
 );
 
 -- Add unique constraint to email
-CREATE UNIQUE INDEX IF NOT EXISTS idx_user_email_unique ON "USER" (email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_email_unique ON "USERS" (email);
 
--- Create CATEGORY table
-CREATE TABLE IF NOT EXISTS "CATEGORY" (
+-- Create CATEGORIES table
+CREATE TABLE IF NOT EXISTS "CATEGORIES"
+(
     id SERIAL PRIMARY KEY,
     category_name VARCHAR(100) NOT NULL,
     description TEXT,
     parent_category_id INT,
-    CONSTRAINT fk_category_parent FOREIGN KEY (parent_category_id) REFERENCES "CATEGORY" (id) ON DELETE SET NULL
+    CONSTRAINT fk_category_parent FOREIGN KEY
+(
+    parent_category_id
+) REFERENCES "CATEGORIES"
+(
+    id
+) ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_category_parent ON "CATEGORY" (parent_category_id);
+CREATE INDEX IF NOT EXISTS idx_category_parent ON "CATEGORIES" (parent_category_id);
 
--- Create SIZE table
-CREATE TABLE IF NOT EXISTS "SIZE" (
+-- Create SIZES table
+CREATE TABLE IF NOT EXISTS "SIZES"
+(
     id SERIAL PRIMARY KEY,
     size_name VARCHAR(20) NOT NULL,
     size_type VARCHAR(50) NOT NULL
 );
 
--- Create COLOR table
-CREATE TABLE IF NOT EXISTS "COLOR" (
+-- Create COLORS table
+CREATE TABLE IF NOT EXISTS "COLORS"
+(
     id SERIAL PRIMARY KEY,
     color_name VARCHAR(50) NOT NULL,
     hex_code VARCHAR(7)
 );
 
--- Create PRODUCT table
-CREATE TABLE IF NOT EXISTS "PRODUCT" (
+-- Create PRODUCTS table
+CREATE TABLE IF NOT EXISTS "PRODUCTS"
+(
     id SERIAL PRIMARY KEY,
     product_name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -63,15 +74,22 @@ CREATE TABLE IF NOT EXISTS "PRODUCT" (
     brand VARCHAR(100),
     date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE,
-    CONSTRAINT fk_product_category FOREIGN KEY (category_id) REFERENCES "CATEGORY" (id) ON DELETE SET NULL
+    CONSTRAINT fk_product_category FOREIGN KEY
+(
+    category_id
+) REFERENCES "CATEGORIES"
+(
+    id
+) ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_product_category ON "PRODUCT" (category_id);
-CREATE INDEX IF NOT EXISTS idx_product_name ON "PRODUCT" (product_name);
-CREATE INDEX IF NOT EXISTS idx_product_active ON "PRODUCT" (is_active);
+CREATE INDEX IF NOT EXISTS idx_product_category ON "PRODUCTS" (category_id);
+CREATE INDEX IF NOT EXISTS idx_product_name ON "PRODUCTS" (product_name);
+CREATE INDEX IF NOT EXISTS idx_product_active ON "PRODUCTS" (is_active);
 
--- Create PRODUCT_DETAIL table
-CREATE TABLE IF NOT EXISTS "PRODUCT_DETAIL" (
+-- Create PRODUCT_DETAILS table
+CREATE TABLE IF NOT EXISTS "PRODUCT_DETAILS"
+(
     id SERIAL PRIMARY KEY,
     product_id INT NOT NULL,
     color VARCHAR(50),
@@ -81,25 +99,39 @@ CREATE TABLE IF NOT EXISTS "PRODUCT_DETAIL" (
     care_instructions TEXT,
     gender VARCHAR(10) NOT NULL,
     season VARCHAR(50),
-    CONSTRAINT fk_product_detail_product FOREIGN KEY (product_id) REFERENCES "PRODUCT" (id) ON DELETE CASCADE
+    CONSTRAINT fk_product_detail_product FOREIGN KEY
+(
+    product_id
+) REFERENCES "PRODUCTS"
+(
+    id
+) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_product_detail_product ON "PRODUCT_DETAIL" (product_id);
+CREATE INDEX IF NOT EXISTS idx_product_detail_product ON "PRODUCT_DETAILS" (product_id);
 
--- Create PRODUCT_IMAGE table
-CREATE TABLE IF NOT EXISTS "PRODUCT_IMAGE" (
+-- Create PRODUCT_IMAGES table
+CREATE TABLE IF NOT EXISTS "PRODUCT_IMAGES"
+(
     id SERIAL PRIMARY KEY,
     product_id INT NOT NULL,
     image_url VARCHAR(255) NOT NULL,
     is_primary BOOLEAN DEFAULT FALSE,
     display_order INTEGER DEFAULT 0,
-    CONSTRAINT fk_product_image_product FOREIGN KEY (product_id) REFERENCES "PRODUCT" (id) ON DELETE CASCADE
+    CONSTRAINT fk_product_image_product FOREIGN KEY
+(
+    product_id
+) REFERENCES "PRODUCTS"
+(
+    id
+) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_product_image_product ON "PRODUCT_IMAGE" (product_id);
+CREATE INDEX IF NOT EXISTS idx_product_image_product ON "PRODUCT_IMAGES" (product_id);
 
--- Create ADDRESS table
-CREATE TABLE IF NOT EXISTS "ADDRESS" (
+-- Create ADDRESSES table
+CREATE TABLE IF NOT EXISTS "ADDRESSES"
+(
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     address_title VARCHAR(50) NOT NULL,
@@ -108,25 +140,39 @@ CREATE TABLE IF NOT EXISTS "ADDRESS" (
     district VARCHAR(50) NOT NULL,
     postal_code VARCHAR(20),
     country VARCHAR(50) DEFAULT 'Turkey',
-    CONSTRAINT fk_address_user FOREIGN KEY (user_id) REFERENCES "USER" (id) ON DELETE CASCADE
+    CONSTRAINT fk_address_user FOREIGN KEY
+(
+    user_id
+) REFERENCES "USERS"
+(
+    id
+) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_address_user ON "ADDRESS" (user_id);
+CREATE INDEX IF NOT EXISTS idx_address_user ON "ADDRESSES" (user_id);
 
--- Create CART table
-CREATE TABLE IF NOT EXISTS "CART" (
+-- Create CARTS table
+CREATE TABLE IF NOT EXISTS "CARTS"
+(
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     total_amount DECIMAL(10, 2) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_cart_user FOREIGN KEY (user_id) REFERENCES "USER" (id) ON DELETE CASCADE
+    CONSTRAINT fk_cart_user FOREIGN KEY
+(
+    user_id
+) REFERENCES "USERS"
+(
+    id
+) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_cart_user ON "CART" (user_id);
+CREATE INDEX IF NOT EXISTS idx_cart_user ON "CARTS" (user_id);
 
--- Create CART_ITEM table
-CREATE TABLE IF NOT EXISTS "CART_ITEM" (
+-- Create CART_ITEMS table
+CREATE TABLE IF NOT EXISTS "CART_ITEMS"
+(
     id SERIAL PRIMARY KEY,
     cart_id INT NOT NULL,
     product_id INT NOT NULL,
@@ -134,16 +180,44 @@ CREATE TABLE IF NOT EXISTS "CART_ITEM" (
     size_id INT,
     color_id INT,
     unit_price DECIMAL(10, 2) NOT NULL,
-    CONSTRAINT fk_cart_item_cart FOREIGN KEY (cart_id) REFERENCES "CART" (id) ON DELETE CASCADE,
-    CONSTRAINT fk_cart_item_product FOREIGN KEY (product_id) REFERENCES "PRODUCT" (id) ON DELETE CASCADE,
-    CONSTRAINT fk_cart_item_size FOREIGN KEY (size_id) REFERENCES "SIZE" (id) ON DELETE SET NULL,
-    CONSTRAINT fk_cart_item_color FOREIGN KEY (color_id) REFERENCES "COLOR" (id) ON DELETE SET NULL
+    CONSTRAINT fk_cart_item_cart FOREIGN KEY
+(
+    cart_id
+) REFERENCES "CARTS"
+(
+    id
+) ON DELETE CASCADE,
+    CONSTRAINT fk_cart_item_product FOREIGN KEY
+(
+    product_id
+) REFERENCES "PRODUCTS"
+(
+    id
+)
+  ON DELETE CASCADE,
+    CONSTRAINT fk_cart_item_size FOREIGN KEY
+(
+    size_id
+) REFERENCES "SIZES"
+(
+    id
+)
+  ON DELETE SET NULL,
+    CONSTRAINT fk_cart_item_color FOREIGN KEY
+(
+    color_id
+) REFERENCES "COLORS"
+(
+    id
+)
+  ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_cart_item_cart_product ON "CART_ITEM" (cart_id, product_id);
+CREATE INDEX IF NOT EXISTS idx_cart_item_cart_product ON "CART_ITEMS" (cart_id, product_id);
 
--- Create DISCOUNT table
-CREATE TABLE IF NOT EXISTS "DISCOUNT" (
+-- Create DISCOUNTS table
+CREATE TABLE IF NOT EXISTS "DISCOUNTS"
+(
     id SERIAL PRIMARY KEY,
     discount_code VARCHAR(50) NOT NULL,
     discount_rate DECIMAL(5, 2) NOT NULL,
@@ -154,11 +228,12 @@ CREATE TABLE IF NOT EXISTS "DISCOUNT" (
     usage_count INT DEFAULT 0
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_discount_code ON "DISCOUNT" (discount_code);
-CREATE INDEX IF NOT EXISTS idx_discount_date_range ON "DISCOUNT" (start_date, end_date);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_discount_code ON "DISCOUNTS" (discount_code);
+CREATE INDEX IF NOT EXISTS idx_discount_date_range ON "DISCOUNTS" (start_date, end_date);
 
--- Create ORDER table with enum
-CREATE TABLE IF NOT EXISTS "ORDER" (
+-- Create ORDERS table with enum
+CREATE TABLE IF NOT EXISTS "ORDERS"
+(
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     address_id INT NOT NULL,
@@ -168,15 +243,28 @@ CREATE TABLE IF NOT EXISTS "ORDER" (
     order_status order_status DEFAULT 'Pending',
     tracking_number VARCHAR(50),
     shipping_fee DECIMAL(10, 2) DEFAULT 0,
-    CONSTRAINT fk_order_user FOREIGN KEY (user_id) REFERENCES "USER" (id),
-    CONSTRAINT fk_order_address FOREIGN KEY (address_id) REFERENCES "ADDRESS" (id)
+    CONSTRAINT fk_order_user FOREIGN KEY
+(
+    user_id
+) REFERENCES "USERS"
+(
+    id
+),
+    CONSTRAINT fk_order_address FOREIGN KEY
+(
+    address_id
+) REFERENCES "ADDRESSES"
+(
+    id
+)
 );
 
-CREATE INDEX IF NOT EXISTS idx_order_user ON "ORDER" (user_id);
-CREATE INDEX IF NOT EXISTS idx_order_status ON "ORDER" (order_status);
+CREATE INDEX IF NOT EXISTS idx_order_user ON "ORDERS" (user_id);
+CREATE INDEX IF NOT EXISTS idx_order_status ON "ORDERS" (order_status);
 
--- Create ORDER_ITEM table
-CREATE TABLE IF NOT EXISTS "ORDER_ITEM" (
+-- Create ORDER_ITEMS table
+CREATE TABLE IF NOT EXISTS "ORDER_ITEMS"
+(
     id SERIAL PRIMARY KEY,
     order_id INT NOT NULL,
     product_id INT NOT NULL,
@@ -184,16 +272,43 @@ CREATE TABLE IF NOT EXISTS "ORDER_ITEM" (
     unit_price DECIMAL(10, 2) NOT NULL,
     size_id INT,
     color_id INT,
-    CONSTRAINT fk_order_item_order FOREIGN KEY (order_id) REFERENCES "ORDER" (id) ON DELETE CASCADE,
-    CONSTRAINT fk_order_item_product FOREIGN KEY (product_id) REFERENCES "PRODUCT" (id),
-    CONSTRAINT fk_order_item_size FOREIGN KEY (size_id) REFERENCES "SIZE" (id) ON DELETE SET NULL,
-    CONSTRAINT fk_order_item_color FOREIGN KEY (color_id) REFERENCES "COLOR" (id) ON DELETE SET NULL
+    CONSTRAINT fk_order_item_order FOREIGN KEY
+(
+    order_id
+) REFERENCES "ORDERS"
+(
+    id
+) ON DELETE CASCADE,
+    CONSTRAINT fk_order_item_product FOREIGN KEY
+(
+    product_id
+) REFERENCES "PRODUCTS"
+(
+    id
+),
+    CONSTRAINT fk_order_item_size FOREIGN KEY
+(
+    size_id
+) REFERENCES "SIZES"
+(
+    id
+)
+  ON DELETE SET NULL,
+    CONSTRAINT fk_order_item_color FOREIGN KEY
+(
+    color_id
+) REFERENCES "COLORS"
+(
+    id
+)
+  ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_order_item_order ON "ORDER_ITEM" (order_id);
+CREATE INDEX IF NOT EXISTS idx_order_item_order ON "ORDER_ITEMS" (order_id);
 
--- Create REVIEW table
-CREATE TABLE IF NOT EXISTS "REVIEW" (
+-- Create REVIEWS table
+CREATE TABLE IF NOT EXISTS "REVIEWS"
+(
     id SERIAL PRIMARY KEY,
     product_id INT NOT NULL,
     user_id INT NOT NULL,
@@ -201,10 +316,23 @@ CREATE TABLE IF NOT EXISTS "REVIEW" (
     review_text TEXT,
     review_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_approved BOOLEAN DEFAULT FALSE,
-    CONSTRAINT fk_review_product FOREIGN KEY (product_id) REFERENCES "PRODUCT" (id) ON DELETE CASCADE,
-    CONSTRAINT fk_review_user FOREIGN KEY (user_id) REFERENCES "USER" (id) ON DELETE CASCADE
+    CONSTRAINT fk_review_product FOREIGN KEY
+(
+    product_id
+) REFERENCES "PRODUCTS"
+(
+    id
+) ON DELETE CASCADE,
+    CONSTRAINT fk_review_user FOREIGN KEY
+(
+    user_id
+) REFERENCES "USERS"
+(
+    id
+)
+  ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_review_product ON "REVIEW" (product_id);
-CREATE INDEX IF NOT EXISTS idx_review_user ON "REVIEW" (user_id);
-CREATE INDEX IF NOT EXISTS idx_review_approved ON "REVIEW" (is_approved); 
+CREATE INDEX IF NOT EXISTS idx_review_product ON "REVIEWS" (product_id);
+CREATE INDEX IF NOT EXISTS idx_review_user ON "REVIEWS" (user_id);
+CREATE INDEX IF NOT EXISTS idx_review_approved ON "REVIEWS" (is_approved); 

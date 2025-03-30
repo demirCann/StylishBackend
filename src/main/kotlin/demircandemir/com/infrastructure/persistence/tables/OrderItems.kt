@@ -1,8 +1,8 @@
-package demircandemir.com.demircandemir.com.infrastructure.persistence.tables
+package demircandemir.com.infrastructure.persistence.tables
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 
-object OrderItems : IntIdTable("ORDER_ITEM") {
+object OrderItems : IntIdTable("ORDER_ITEMS") {
     val orderId = reference("order_id", Orders)
     val productId = reference("product_id", Products)
     val quantity = integer("quantity").default(1)
