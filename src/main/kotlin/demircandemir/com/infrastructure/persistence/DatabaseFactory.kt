@@ -1,64 +1,60 @@
 package demircandemir.com.infrastructure.persistence
 
-import demircandemir.com.demircandemir.com.infrastructure.persistence.tables.*
 import io.ktor.server.config.*
-import kotlinx.coroutines.Dispatchers
 import org.flywaydb.core.Flyway
-import org.flywaydb.core.api.exception.FlywayValidateException
 import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.slf4j.LoggerFactory
 
 object DatabaseFactory {
     private val logger = LoggerFactory.getLogger(this::class.java)
+    private lateinit var database: Database
+    private var isTestDatabase = false
 
     fun init(config: ApplicationConfig) {
-        logger.info("Initializing database with Flyway migrations")
-
-        val jdbcUrl = config.property("database.jdbcURL").getString()
-        val driverClassName = config.property("database.driverClassName").getString()
-        val username = config.property("database.username").getString()
+        logger.info("Initializing production database")
+        val host = config.property("database.host").getString()
+        val port = config.property("database.port").getString()
+        val name = config.property("database.name").getString()
+        val user = config.property("database.user").getString()
         val password = config.property("database.password").getString()
-        
-        // Run Flyway migrations
-        val flyway = Flyway.configure()
-            .dataSource(jdbcUrl, username, password)
-            .locations("classpath:db/migration")
-            .baselineOnMigrate(true)
-            .load()
-            
-        try {
-            val migrations = flyway.migrate()
-            logger.info("Applied ${migrations.migrationsExecuted} migrations successfully")
-        } catch (e: FlywayValidateException) {
-            logger.warn("Flyway validation failed: ${e.message}")
-            logger.warn("Trying to repair schema history...")
-            try {
-                flyway.repair()
-                // Try to migrate again after repair
-                val migrations = flyway.migrate()
-                logger.info("After repair: Applied ${migrations.migrationsExecuted} migrations successfully")
-            } catch (repairEx: Exception) {
-                logger.error("Failed to repair schema history: ${repairEx.message}", repairEx)
-                throw repairEx
-            }
-        } catch (e: Exception) {
-            logger.error("Failed to apply migrations: ${e.message}", e)
-            throw e
-        }
-        
-        // Connect to the database with Exposed
-        logger.info("Connecting to database with Exposed")
-        Database.connect(
-            url = jdbcUrl,
-            driver = driverClassName,
-            user = username,
+
+        val jdbcURL = "jdbc:postgresql://$host:$port/$name"
+
+        database = Database.connect(
+            url = jdbcURL,
+            driver = "org.postgresql.Driver",
+            user = user,
             password = password
         )
-        
-        logger.info("Database initialization completed")
+
+        runFlywayMigrations(jdbcURL, user, password)
     }
-    
-    suspend fun <T> dbQuery(block: suspend () -> T): T =
-        newSuspendedTransaction(Dispatchers.IO) { block() }
+
+    fun initTest(testDatabase: Database) {
+        logger.info("Initializing test database")
+        database = testDatabase
+        isTestDatabase = true
+    }
+
+    private fun runFlywayMigrations(jdbcURL: String, user: String, password: String) {
+        if (!isTestDatabase) {
+            logger.info("Running Flyway migrations on PostgreSQL database")
+            val flyway = Flyway.configure()
+                .dataSource(jdbcURL, user, password)
+                .load()
+            try {
+                flyway.migrate()
+                logger.info("Flyway migrations completed successfully")
+            } catch (e: Exception) {
+                logger.error("Failed to run Flyway migrations", e)
+                throw e
+            }
+        } else {
+            logger.info("Skipping Flyway migrations for test database")
+        }
+    }
+
+    fun <T> dbQuery(block: () -> T): T {
+        return org.jetbrains.exposed.sql.transactions.transaction(database) { block() }
+    }
 } 

@@ -4,6 +4,8 @@ val koin_version: String by project
 val kotlin_version: String by project
 val logback_version: String by project
 val ktor_version: String = "3.1.1"
+val mockk_version = "1.13.9"
+val testcontainers_version = "1.19.6"
 
 plugins {
     kotlin("jvm") version "2.1.10"
@@ -50,7 +52,13 @@ dependencies {
     // https://mvnrepository.com/artifact/org.flywaydb/flyway-database-postgresql
     runtimeOnly("org.flywaydb:flyway-database-postgresql:11.2.0")
 
-
+    // Test dependencies
     testImplementation("io.ktor:ktor-server-test-host:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
+    testImplementation("io.mockk:mockk:$mockk_version")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    testImplementation("io.insert-koin:koin-test:$koin_version")
+    testImplementation("io.insert-koin:koin-test-junit4:$koin_version")
+    testImplementation("org.testcontainers:postgresql:$testcontainers_version")
+    testImplementation("com.h2database:h2:2.2.224")
 }
