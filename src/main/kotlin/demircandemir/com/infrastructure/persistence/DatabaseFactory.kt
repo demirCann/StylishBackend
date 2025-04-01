@@ -12,22 +12,45 @@ object DatabaseFactory {
 
     fun init(config: ApplicationConfig) {
         logger.info("Initializing production database")
-        val host = config.property("database.host").getString()
-        val port = config.property("database.port").getString()
-        val name = config.property("database.name").getString()
-        val user = config.property("database.user").getString()
-        val password = config.property("database.password").getString()
 
-        val jdbcURL = "jdbc:postgresql://$host:$port/$name"
+        val jdbcURL: String
+        val driver: String
+        val user: String
+        val password: String
+
+        // Yapılandırma formatını kontrol et
+        if (config.propertyOrNull("database.url") != null) {
+            // Test veya H2 yapılandırması
+            jdbcURL = config.property("database.url").getString()
+            driver = config.property("database.driver").getString()
+            user = config.property("database.user").getString()
+            password = config.property("database.password").getString()
+
+            isTestDatabase = true // H2 kullanılıyorsa test modunda çalışıyoruz
+            logger.info("Using H2 test database: $jdbcURL")
+        } else {
+            // Production PostgreSQL yapılandırması
+            val host = config.property("database.host").getString()
+            val port = config.property("database.port").getString()
+            val name = config.property("database.name").getString()
+            user = config.property("database.user").getString()
+            password = config.property("database.password").getString()
+
+            jdbcURL = "jdbc:postgresql://$host:$port/$name"
+            driver = "org.postgresql.Driver"
+            logger.info("Using PostgreSQL database: $jdbcURL")
+        }
 
         database = Database.connect(
             url = jdbcURL,
-            driver = "org.postgresql.Driver",
+            driver = driver,
             user = user,
             password = password
         )
 
-        runFlywayMigrations(jdbcURL, user, password)
+        if (!isTestDatabase) {
+            runFlywayMigrations(jdbcURL, user, password)
+        }
     }
 
     fun initTest(testDatabase: Database) {
@@ -41,6 +64,8 @@ object DatabaseFactory {
             logger.info("Running Flyway migrations on PostgreSQL database")
             val flyway = Flyway.configure()
                 .dataSource(jdbcURL, user, password)
+                .baselineOnMigrate(true)
+                .baselineVersion("0")
                 .load()
             try {
                 flyway.migrate()
