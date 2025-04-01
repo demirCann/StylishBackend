@@ -2,11 +2,11 @@ package demircandemir.com
 
 import demircandemir.com.application.serialization.appSerializersModule
 import demircandemir.com.di.repositoryModule
+import demircandemir.com.domain.repository.CategoryRepository
+import demircandemir.com.domain.repository.ProductRepository
 import demircandemir.com.domain.repository.UserRepository
 import demircandemir.com.infrastructure.persistence.DatabaseFactory
-import demircandemir.com.presentation.routes.addressRoutes
-import demircandemir.com.presentation.routes.rootRoutes
-import demircandemir.com.presentation.routes.userRoutes
+import demircandemir.com.presentation.routes.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.contentnegotiation.*
@@ -29,9 +29,6 @@ fun Application.module() {
         modules(repositoryModule)
     }
 
-    // Get dependencies
-    val userRepository: UserRepository by inject()
-
     // Content negotiation
     install(ContentNegotiation) {
         json(Json {
@@ -42,8 +39,15 @@ fun Application.module() {
         })
     }
 
+    // Get dependencies
+    val userRepository: UserRepository by inject()
+    val productRepository: ProductRepository by inject()
+    val categoryRepository: CategoryRepository by inject()
+
     // Routes
     rootRoutes()
     userRoutes(userRepository)
     addressRoutes(userRepository)
+    productRoutes(productRepository)
+    categoryRoutes(categoryRepository)
 } 

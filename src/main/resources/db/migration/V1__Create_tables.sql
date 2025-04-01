@@ -1,10 +1,31 @@
+-- Create schema if it doesn't exist
+CREATE SCHEMA IF NOT EXISTS public;
+
+-- Set schema search path
+SET search_path TO public;
+
 -- Drop constraints if they exist to avoid the duplication error
 DO $$
 BEGIN
-    -- Drop existing constraints to avoid duplication errors
-    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_email_unique') THEN
-ALTER TABLE "USERS" DROP CONSTRAINT user_email_unique;
-    END IF;
+    -- Daha genel bir yaklaşım: Bu USERS tablosundaki email sütununda bulunan
+    -- tüm unique constraint'leri kaldırır
+    BEGIN
+        EXECUTE (
+            'ALTER TABLE "USERS" DROP CONSTRAINT IF EXISTS ' ||
+            (SELECT conname
+             FROM pg_constraint
+             WHERE conrelid = '"USERS"'::regclass
+               AND contype = 'u'
+               AND array_position(conkey, (SELECT attnum
+                                           FROM pg_attribute
+                                           WHERE attrelid = '"USERS"'::regclass AND attname = 'email')) IS NOT NULL
+             LIMIT 1)
+            );
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- Herhangi bir hata olursa, hata mesajını görmezden gel ve devam et
+            RAISE NOTICE 'No unique constraint on USERS.email found or error removing it';
+    END;
     
     -- Check if order_status type exists and create it if it doesn't
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_status') THEN

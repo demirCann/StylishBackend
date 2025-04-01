@@ -4,7 +4,6 @@ import demircandemir.com.infrastructure.persistence.tables.Addresses
 import demircandemir.com.infrastructure.persistence.tables.Users
 import demircandemir.com.testutils.TestData
 import kotlinx.coroutines.runBlocking
-import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.After
@@ -17,61 +16,44 @@ import kotlin.test.assertNull
 
 class UserRepositoryImplTest {
     private val logger = LoggerFactory.getLogger(this::class.java)
-    private lateinit var database: Database
     private lateinit var userRepository: UserRepositoryImpl
 
     @Before
     fun setUp() {
-        logger.info("Setting up test database")
-
         // Initialize H2 in-memory database for testing
-        database = TestDatabaseFactory.initTestDatabase()
+        TestDatabaseFactory.initTestDatabase()
 
         // Create tables
-        transaction(database) {
+        transaction {
             SchemaUtils.create(Users, Addresses)
         }
 
-        // Initialize DatabaseFactory with test database
-        DatabaseFactory.initTest(database)
-
         userRepository = UserRepositoryImpl()
-
-        logger.info("Test database setup completed")
     }
 
     @After
     fun tearDown() {
         logger.info("Cleaning up test database")
 
-        transaction(database) {
+        transaction {
             SchemaUtils.drop(Users, Addresses)
         }
-
-        logger.info("Test database cleanup completed")
     }
 
     @Test
     fun `test create and get user`() = runBlocking {
-        logger.info("Starting create and get user test")
-
         // Given
         val user = TestData.Users.createTestUser()
 
         // When
         val createdUser = userRepository.createUser(user)
-        logger.info("Created user with ID: ${createdUser.id}, ${createdUser.firstName}")
-
         val retrievedUser = userRepository.getUserById(createdUser.id)
-        logger.info("Retrieved user: $retrievedUser")
 
         // Then
         assertNotNull(retrievedUser, "Retrieved user should not be null")
         assertEquals(createdUser.email, retrievedUser.email)
         assertEquals(createdUser.firstName, retrievedUser.firstName)
         assertEquals(createdUser.lastName, retrievedUser.lastName)
-
-        logger.info("Create and get user test completed successfully")
     }
 
     @Test

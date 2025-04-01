@@ -1,5 +1,6 @@
 package demircandemir.com.infrastructure.persistence.tables
 
+import demircandemir.com.domain.model.Gender
 import org.jetbrains.exposed.dao.id.IntIdTable
 
 object ProductDetails : IntIdTable("PRODUCT_DETAILS") {
@@ -15,8 +16,4 @@ object ProductDetails : IntIdTable("PRODUCT_DETAILS") {
     init {
         index(false, productId)
     }
-}
-
-enum class Gender {
-    Male, Female, Unisex
 }

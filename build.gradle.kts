@@ -49,16 +49,25 @@ dependencies {
     
     // Flyway dependencies
     implementation("org.flywaydb:flyway-core:11.2.0")
-    // https://mvnrepository.com/artifact/org.flywaydb/flyway-database-postgresql
     runtimeOnly("org.flywaydb:flyway-database-postgresql:11.2.0")
 
     // Test dependencies
     testImplementation("io.ktor:ktor-server-test-host:$ktor_version")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
     testImplementation("io.mockk:mockk:$mockk_version")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
     testImplementation("io.insert-koin:koin-test:$koin_version")
-    testImplementation("io.insert-koin:koin-test-junit4:$koin_version")
+    testImplementation("io.insert-koin:koin-test-junit5:$koin_version")
     testImplementation("org.testcontainers:postgresql:$testcontainers_version")
     testImplementation("com.h2database:h2:2.2.224")
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation("io.ktor:ktor-client-content-negotiation:$ktor_version")
+    testImplementation("io.ktor:ktor-serialization-kotlinx-json:$ktor_version")
+    testImplementation("org.jetbrains.exposed:exposed-core:$exposed_version")
+    testImplementation("org.jetbrains.exposed:exposed-dao:$exposed_version")
+    testImplementation("org.jetbrains.exposed:exposed-jdbc:$exposed_version")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
