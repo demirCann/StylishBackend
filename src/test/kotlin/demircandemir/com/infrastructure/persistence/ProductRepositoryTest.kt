@@ -4,6 +4,7 @@ import demircandemir.com.domain.model.Gender
 import demircandemir.com.domain.model.Product
 import demircandemir.com.domain.model.ProductDetail
 import demircandemir.com.domain.model.ProductImage
+import demircandemir.com.infrastructure.persistence.repository.ProductRepositoryImpl
 import demircandemir.com.infrastructure.persistence.tables.Categories
 import demircandemir.com.infrastructure.persistence.tables.ProductDetails
 import demircandemir.com.infrastructure.persistence.tables.ProductImages
