@@ -2,9 +2,7 @@ package demircandemir.com
 
 import demircandemir.com.application.serialization.appSerializersModule
 import demircandemir.com.di.repositoryModule
-import demircandemir.com.domain.repository.CategoryRepository
-import demircandemir.com.domain.repository.ProductRepository
-import demircandemir.com.domain.repository.UserRepository
+import demircandemir.com.domain.repository.*
 import demircandemir.com.infrastructure.persistence.DatabaseFactory
 import demircandemir.com.presentation.routes.*
 import io.ktor.serialization.kotlinx.json.*
@@ -43,6 +41,10 @@ fun Application.module() {
     val userRepository: UserRepository by inject()
     val productRepository: ProductRepository by inject()
     val categoryRepository: CategoryRepository by inject()
+    val cartRepository: CartRepository by inject()
+    val cartItemRepository: CartItemRepository by inject()
+    val orderRepository: OrderRepository by inject()
+    val orderItemRepository: OrderItemRepository by inject()
 
     // Routes
     rootRoutes()
@@ -50,4 +52,8 @@ fun Application.module() {
     addressRoutes(userRepository)
     productRoutes(productRepository)
     categoryRoutes(categoryRepository)
+    cartRoutes(cartRepository, cartItemRepository)
+    cartItemRoutes(cartItemRepository, cartRepository, productRepository)
+    orderRoutes(orderRepository, orderItemRepository, productRepository, userRepository)
+    orderItemRoutes(orderItemRepository, orderRepository)
 } 

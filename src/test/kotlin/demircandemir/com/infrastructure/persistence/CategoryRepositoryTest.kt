@@ -1,6 +1,7 @@
 package demircandemir.com.infrastructure.persistence
 
 import demircandemir.com.domain.model.Category
+import demircandemir.com.infrastructure.persistence.repository.CategoryRepositoryImpl
 import demircandemir.com.infrastructure.persistence.tables.Categories
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.sql.SchemaUtils

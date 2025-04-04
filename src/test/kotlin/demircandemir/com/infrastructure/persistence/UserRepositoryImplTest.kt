@@ -1,5 +1,6 @@
 package demircandemir.com.infrastructure.persistence
 
+import demircandemir.com.infrastructure.persistence.repository.UserRepositoryImpl
 import demircandemir.com.infrastructure.persistence.tables.Addresses
 import demircandemir.com.infrastructure.persistence.tables.Users
 import demircandemir.com.testutils.TestData
