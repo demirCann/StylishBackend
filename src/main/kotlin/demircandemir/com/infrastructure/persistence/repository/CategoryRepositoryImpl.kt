@@ -1,7 +1,8 @@
-package demircandemir.com.infrastructure.persistence
+package demircandemir.com.infrastructure.persistence.repository
 
 import demircandemir.com.domain.model.Category
 import demircandemir.com.domain.repository.CategoryRepository
+import demircandemir.com.infrastructure.persistence.DatabaseFactory
 import demircandemir.com.infrastructure.persistence.tables.Categories
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq

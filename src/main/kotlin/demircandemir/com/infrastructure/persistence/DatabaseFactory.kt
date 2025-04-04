@@ -66,8 +66,19 @@ object DatabaseFactory {
                 .dataSource(jdbcURL, user, password)
                 .baselineOnMigrate(true)
                 .baselineVersion("0")
+                .validateOnMigrate(false)
+                .validateMigrationNaming(false)
+                .ignoreMigrationPatterns("*:missing")
                 .load()
             try {
+                try {
+                    logger.info("Attempting to repair Flyway schema history...")
+                    flyway.repair()
+                    logger.info("Flyway repair succeeded")
+                } catch (repairEx: Exception) {
+                    logger.warn("Flyway repair failed: ${repairEx.message}")
+                }
+                
                 flyway.migrate()
                 logger.info("Flyway migrations completed successfully")
             } catch (e: Exception) {

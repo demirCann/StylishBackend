@@ -1,8 +1,9 @@
-package demircandemir.com.infrastructure.persistence
+package demircandemir.com.infrastructure.persistence.repository
 
 import demircandemir.com.domain.model.Address
 import demircandemir.com.domain.model.User
 import demircandemir.com.domain.repository.UserRepository
+import demircandemir.com.infrastructure.persistence.DatabaseFactory
 import demircandemir.com.infrastructure.persistence.tables.Addresses
 import demircandemir.com.infrastructure.persistence.tables.Users
 import org.jetbrains.exposed.sql.*
