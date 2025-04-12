@@ -12,6 +12,7 @@ object Orders : IntIdTable("ORDERS") {
     val paymentMethod = varchar("payment_method", 50)
     val orderStatus = enumerationByName("order_status", 10, OrderStatus::class).default(OrderStatus.Pending)
     val trackingNumber = varchar("tracking_number", 50).nullable()
+    val shippingProvider = varchar("shipping_provider", 50).nullable()
     val shippingFee = decimal("shipping_fee", 10, 2).default(0.toBigDecimal())
 
     init {

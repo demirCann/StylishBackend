@@ -20,6 +20,7 @@ class OrderRepositoryImpl : OrderRepository {
             paymentMethod = this[Orders.paymentMethod],
             orderStatus = this[Orders.orderStatus],
             trackingNumber = this[Orders.trackingNumber],
+            shippingProvider = this[Orders.shippingProvider],
             shippingFee = this[Orders.shippingFee]
         )
     }
@@ -34,6 +35,7 @@ class OrderRepositoryImpl : OrderRepository {
                 it[paymentMethod] = order.paymentMethod
                 it[orderStatus] = order.orderStatus
                 it[trackingNumber] = order.trackingNumber
+                it[shippingProvider] = order.shippingProvider
                 it[shippingFee] = order.shippingFee
             }
 
@@ -83,6 +85,7 @@ class OrderRepositoryImpl : OrderRepository {
                 it[paymentMethod] = order.paymentMethod
                 it[orderStatus] = order.orderStatus
                 it[trackingNumber] = order.trackingNumber
+                it[shippingProvider] = order.shippingProvider
                 it[shippingFee] = order.shippingFee
             }
 
@@ -103,6 +106,23 @@ class OrderRepositoryImpl : OrderRepository {
         try {
             val updatedRows = Orders.update({ Orders.id eq orderId }) {
                 it[orderStatus] = status
+            }
+
+            Result.success(updatedRows > 0)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateTracking(
+        orderId: Int,
+        trackingNumber: String,
+        shippingProvider: String
+    ): Result<Boolean> = dbQuery {
+        try {
+            val updatedRows = Orders.update({ Orders.id eq orderId }) {
+                it[Orders.trackingNumber] = trackingNumber
+                it[Orders.shippingProvider] = shippingProvider
             }
 
             Result.success(updatedRows > 0)

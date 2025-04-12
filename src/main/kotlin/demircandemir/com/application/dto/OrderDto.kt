@@ -13,6 +13,7 @@ data class OrderResponse(
     val paymentMethod: String,
     val orderStatus: OrderStatus,
     val trackingNumber: String?,
+    val shippingProvider: String?,
     val shippingFee: String,
     val items: List<OrderItemResponse>? = null
 )
@@ -40,6 +41,7 @@ data class UpdateOrderStatusRequest(
 )
 
 @Serializable
-data class UpdateTrackingNumberRequest(
-    val trackingNumber: String
+data class UpdateTrackingRequest(
+    val trackingNumber: String,
+    val shippingProvider: String
 ) 

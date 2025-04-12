@@ -13,5 +13,6 @@ data class Order(
     val paymentMethod: String,
     val orderStatus: OrderStatus = OrderStatus.Pending,
     val trackingNumber: String? = null,
+    val shippingProvider: String? = null,
     val shippingFee: BigDecimal = BigDecimal.ZERO
 )
