@@ -2,8 +2,8 @@ package demircandemir.com.testutils
 
 import demircandemir.com.application.dto.CreateAddressRequest
 import demircandemir.com.application.dto.UpdateAddressRequest
-import demircandemir.com.domain.model.Address
-import demircandemir.com.domain.model.User
+import demircandemir.com.domain.model.*
+import java.math.BigDecimal
 import java.time.LocalDateTime
 
 object TestData {
@@ -20,12 +20,12 @@ object TestData {
         ) = User(
             id = id,
             email = email,
-            password = password,
+            passwordHash = password,
             firstName = firstName,
             lastName = lastName,
             phoneNumber = phoneNumber,
             registrationDate = registrationDate,
-            isActive = isActive
+            status = AccountStatus.ACTIVE
         )
     }
 
@@ -94,5 +94,47 @@ object TestData {
                 )
             }
         }
+    }
+
+    object Products {
+        fun createTestProduct(
+            id: Int = 0,
+            productName: String = "Test Product",
+            description: String? = "Test Description",
+            price: BigDecimal = BigDecimal("99.99"),
+            stockQuantity: Int = 100,
+            categoryId: Int? = null,
+            brand: String? = "Test Brand",
+            dateAdded: LocalDateTime = LocalDateTime.now(),
+            isActive: Boolean = true
+        ) = Product(
+            id = id,
+            productName = productName,
+            description = description,
+            price = price,
+            stockQuantity = stockQuantity,
+            categoryId = categoryId,
+            brand = brand,
+            dateAdded = dateAdded,
+            isActive = isActive
+        )
+    }
+
+    object Categories {
+        fun createTestCategory(
+            id: Int = 0,
+            categoryName: String = "Test Category",
+            description: String? = "Test Description",
+            parentCategoryId: Int? = null,
+            parentCategory: Category? = null,
+            subCategories: List<Category> = listOf(),
+        ) = Category(
+            id = id,
+            categoryName = categoryName,
+            description = description,
+            parentCategoryId = parentCategoryId,
+            parentCategory = parentCategory,
+            subCategories = subCategories
+        )
     }
 } 
