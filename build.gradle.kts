@@ -3,9 +3,9 @@ val h2_version: String by project
 val koin_version: String by project
 val kotlin_version: String by project
 val logback_version: String by project
-val ktor_version: String = "3.1.1"
-val mockk_version = "1.13.9"
-val testcontainers_version = "1.19.6"
+val ktor_version: String by project
+val mockk_version: String by project
+val testcontainers_version: String by project
 
 plugins {
     kotlin("jvm") version "2.1.10"
@@ -31,6 +31,7 @@ dependencies {
     implementation("io.ktor:ktor-server-core:$ktor_version")
     implementation("io.ktor:ktor-server-auth:$ktor_version")
     implementation("io.ktor:ktor-server-auth-jwt:$ktor_version")
+    implementation("io.ktor:ktor-server-cors:$ktor_version")
     implementation("io.ktor:ktor-server-openapi:$ktor_version")
     implementation("io.ktor:ktor-server-swagger:$ktor_version")
     implementation("io.ktor:ktor-server-call-logging:$ktor_version")
