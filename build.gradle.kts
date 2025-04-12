@@ -6,6 +6,7 @@ val logback_version: String by project
 val ktor_version: String by project
 val mockk_version: String by project
 val testcontainers_version: String by project
+val jakarta_mail_version: String by project
 
 plugins {
     kotlin("jvm") version "2.1.10"
@@ -47,6 +48,9 @@ dependencies {
     implementation("io.ktor:ktor-server-netty:$ktor_version")
     implementation("ch.qos.logback:logback-classic:$logback_version")
     implementation("io.ktor:ktor-server-config-yaml:$ktor_version")
+
+    // Email dependencies
+    implementation("com.sun.mail:jakarta.mail:$jakarta_mail_version")
     
     // Flyway dependencies
     implementation("org.flywaydb:flyway-core:11.2.0")
