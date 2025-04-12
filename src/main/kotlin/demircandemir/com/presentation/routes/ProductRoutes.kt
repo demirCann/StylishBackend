@@ -1,9 +1,6 @@
 package demircandemir.com.presentation.routes
 
-import demircandemir.com.application.dto.ProductDetailRequest
-import demircandemir.com.application.dto.ProductImageRequest
-import demircandemir.com.application.dto.ProductRequest
-import demircandemir.com.application.dto.ProductResponse
+import demircandemir.com.application.dto.*
 import demircandemir.com.domain.model.Gender
 import demircandemir.com.domain.model.Product
 import demircandemir.com.domain.model.ProductDetail
@@ -11,6 +8,8 @@ import demircandemir.com.domain.model.ProductImage
 import demircandemir.com.domain.repository.ProductRepository
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -19,6 +18,7 @@ import java.math.BigDecimal
 fun Application.productRoutes(productRepository: ProductRepository) {
     routing {
         route("/api/products") {
+            // General product listing and search operations - no authentication required
             // Get all products with pagination
             get {
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
@@ -46,55 +46,6 @@ fun Application.productRoutes(productRepository: ProductRepository) {
                 call.respond(product.toProductResponse())
             }
 
-            // Create new product
-            post {
-                val request = call.receive<ProductRequest>()
-                val product = Product(
-                    productName = request.productName,
-                    description = request.description,
-                    price = BigDecimal(request.price),
-                    stockQuantity = request.stockQuantity,
-                    categoryId = request.categoryId,
-                    brand = request.brand,
-                    isActive = request.isActive
-                )
-
-                val createdProduct = productRepository.createProduct(product)
-                call.respond(HttpStatusCode.Created, createdProduct.toProductResponse())
-            }
-
-            // Update product
-            put("/{id}") {
-                val id = call.parameters["id"]?.toIntOrNull()
-                    ?: return@put call.respond(HttpStatusCode.BadRequest, "Invalid ID format")
-
-                val existingProduct = productRepository.getProductById(id)
-                    ?: return@put call.respond(HttpStatusCode.NotFound, "Product not found")
-
-                val request = call.receive<ProductRequest>()
-                val updatedProduct = existingProduct.copy(
-                    productName = request.productName,
-                    description = request.description,
-                    price = BigDecimal(request.price),
-                    stockQuantity = request.stockQuantity,
-                    categoryId = request.categoryId,
-                    brand = request.brand,
-                    isActive = request.isActive
-                )
-
-                val result = productRepository.updateProduct(updatedProduct)
-                call.respond(result.toProductResponse())
-            }
-
-            // Delete product
-            delete("/{id}") {
-                val id = call.parameters["id"]?.toIntOrNull()
-                    ?: return@delete call.respond(HttpStatusCode.BadRequest, "Invalid ID format")
-
-                productRepository.deleteProduct(id)
-                call.respond(HttpStatusCode.NoContent)
-            }
-
             // Search products
             get("/search") {
                 val query = call.request.queryParameters["q"] ?: ""
@@ -117,7 +68,7 @@ fun Application.productRoutes(productRepository: ProductRepository) {
                 call.respond(products.map { it.toProductResponse() })
             }
 
-            // Product details routes
+            // Get product details - no authentication required
             route("/{productId}/details") {
                 // Get product details
                 get {
@@ -129,36 +80,9 @@ fun Application.productRoutes(productRepository: ProductRepository) {
 
                     call.respond(details)
                 }
-
-                // Create or update product details
-                post {
-                    val productId = call.parameters["productId"]?.toIntOrNull()
-                        ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid product ID")
-
-                    val request = call.receive<ProductDetailRequest>()
-                    val details = ProductDetail(
-                        productId = productId,
-                        color = request.color,
-                        size = request.size,
-                        material = request.material,
-                        madeIn = request.madeIn,
-                        careInstructions = request.careInstructions,
-                        gender = Gender.valueOf(request.gender),
-                        season = request.season
-                    )
-
-                    val existingDetails = productRepository.getProductDetails(productId)
-                    val result = if (existingDetails != null) {
-                        productRepository.updateProductDetails(details.copy(id = existingDetails.id))
-                    } else {
-                        productRepository.createProductDetails(details)
-                    }
-
-                    call.respond(HttpStatusCode.Created, result)
-                }
             }
 
-            // Product images routes
+            // Get product images - no authentication required
             route("/{productId}/images") {
                 // Get all images for a product
                 get {
@@ -168,43 +92,212 @@ fun Application.productRoutes(productRepository: ProductRepository) {
                     val images = productRepository.getProductImages(productId)
                     call.respond(images)
                 }
+            }
 
-                // Add a new image
+            // Authentication required for admin operations
+            authenticate("auth-jwt") {
+                // Admin-only: Create new product
                 post {
-                    val productId = call.parameters["productId"]?.toIntOrNull()
-                        ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid product ID")
+                    // Admin permission check
+                    val principal = call.principal<JWTPrincipal>()
+                    val role = principal?.getClaim("role", String::class) ?: ""
 
-                    val request = call.receive<ProductImageRequest>()
-                    val image = ProductImage(
-                        productId = productId,
-                        imageUrl = request.imageUrl,
-                        isPrimary = request.isPrimary,
-                        displayOrder = request.displayOrder
+                    if (role != "ADMIN") {
+                        call.respond(
+                            HttpStatusCode.Forbidden,
+                            MessageResponse("Admin access required to create products")
+                        )
+                        return@post
+                    }
+
+                    val request = call.receive<ProductRequest>()
+                    val product = Product(
+                        productName = request.productName,
+                        description = request.description,
+                        price = BigDecimal(request.price),
+                        stockQuantity = request.stockQuantity,
+                        categoryId = request.categoryId,
+                        brand = request.brand,
+                        isActive = request.isActive
                     )
 
-                    val result = productRepository.addProductImage(image)
-                    call.respond(HttpStatusCode.Created, result)
+                    val createdProduct = productRepository.createProduct(product)
+                    call.respond(HttpStatusCode.Created, createdProduct.toProductResponse())
                 }
 
-                // Delete an image
-                delete("/{imageId}") {
-                    val imageId = call.parameters["imageId"]?.toIntOrNull()
-                        ?: return@delete call.respond(HttpStatusCode.BadRequest, "Invalid image ID")
+                // Admin-only: Update product
+                put("/{id}") {
+                    // Admin permission check
+                    val principal = call.principal<JWTPrincipal>()
+                    val role = principal?.getClaim("role", String::class) ?: ""
 
-                    productRepository.deleteProductImage(imageId)
+                    if (role != "ADMIN") {
+                        call.respond(
+                            HttpStatusCode.Forbidden,
+                            MessageResponse("Admin access required to update products")
+                        )
+                        return@put
+                    }
+
+                    val id = call.parameters["id"]?.toIntOrNull()
+                        ?: return@put call.respond(HttpStatusCode.BadRequest, "Invalid ID format")
+
+                    val existingProduct = productRepository.getProductById(id)
+                        ?: return@put call.respond(HttpStatusCode.NotFound, "Product not found")
+
+                    val request = call.receive<ProductRequest>()
+                    val updatedProduct = existingProduct.copy(
+                        productName = request.productName,
+                        description = request.description,
+                        price = BigDecimal(request.price),
+                        stockQuantity = request.stockQuantity,
+                        categoryId = request.categoryId,
+                        brand = request.brand,
+                        isActive = request.isActive
+                    )
+
+                    val result = productRepository.updateProduct(updatedProduct)
+                    call.respond(result.toProductResponse())
+                }
+
+                // Admin-only: Delete product
+                delete("/{id}") {
+                    // Admin permission check
+                    val principal = call.principal<JWTPrincipal>()
+                    val role = principal?.getClaim("role", String::class) ?: ""
+
+                    if (role != "ADMIN") {
+                        call.respond(
+                            HttpStatusCode.Forbidden,
+                            MessageResponse("Admin access required to delete products")
+                        )
+                        return@delete
+                    }
+
+                    val id = call.parameters["id"]?.toIntOrNull()
+                        ?: return@delete call.respond(HttpStatusCode.BadRequest, "Invalid ID format")
+
+                    productRepository.deleteProduct(id)
                     call.respond(HttpStatusCode.NoContent)
                 }
 
-                // Set primary image
-                put("/{imageId}/primary") {
-                    val productId = call.parameters["productId"]?.toIntOrNull()
-                        ?: return@put call.respond(HttpStatusCode.BadRequest, "Invalid product ID")
+                // Product details routes - Admin only
+                route("/{productId}/details") {
+                    // Admin-only: Create or update product details
+                    post {
+                        // Admin permission check
+                        val principal = call.principal<JWTPrincipal>()
+                        val role = principal?.getClaim("role", String::class) ?: ""
 
-                    val imageId = call.parameters["imageId"]?.toIntOrNull()
-                        ?: return@put call.respond(HttpStatusCode.BadRequest, "Invalid image ID")
+                        if (role != "ADMIN") {
+                            call.respond(
+                                HttpStatusCode.Forbidden,
+                                MessageResponse("Admin access required to manage product details")
+                            )
+                            return@post
+                        }
 
-                    productRepository.setProductPrimaryImage(imageId, productId)
-                    call.respond(HttpStatusCode.OK)
+                        val productId = call.parameters["productId"]?.toIntOrNull()
+                            ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid product ID")
+
+                        val request = call.receive<ProductDetailRequest>()
+                        val details = ProductDetail(
+                            productId = productId,
+                            color = request.color,
+                            size = request.size,
+                            material = request.material,
+                            madeIn = request.madeIn,
+                            careInstructions = request.careInstructions,
+                            gender = Gender.valueOf(request.gender),
+                            season = request.season
+                        )
+
+                        val existingDetails = productRepository.getProductDetails(productId)
+                        val result = if (existingDetails != null) {
+                            productRepository.updateProductDetails(details.copy(id = existingDetails.id))
+                        } else {
+                            productRepository.createProductDetails(details)
+                        }
+
+                        call.respond(HttpStatusCode.Created, result)
+                    }
+                }
+
+                // Product images routes - Admin only
+                route("/{productId}/images") {
+                    // Admin-only: Add a new image
+                    post {
+                        // Admin permission check
+                        val principal = call.principal<JWTPrincipal>()
+                        val role = principal?.getClaim("role", String::class) ?: ""
+
+                        if (role != "ADMIN") {
+                            call.respond(
+                                HttpStatusCode.Forbidden,
+                                MessageResponse("Admin access required to add product images")
+                            )
+                            return@post
+                        }
+
+                        val productId = call.parameters["productId"]?.toIntOrNull()
+                            ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid product ID")
+
+                        val request = call.receive<ProductImageRequest>()
+                        val image = ProductImage(
+                            productId = productId,
+                            imageUrl = request.imageUrl,
+                            isPrimary = request.isPrimary,
+                            displayOrder = request.displayOrder
+                        )
+
+                        val result = productRepository.addProductImage(image)
+                        call.respond(HttpStatusCode.Created, result)
+                    }
+
+                    // Admin-only: Delete an image
+                    delete("/{imageId}") {
+                        // Admin permission check
+                        val principal = call.principal<JWTPrincipal>()
+                        val role = principal?.getClaim("role", String::class) ?: ""
+
+                        if (role != "ADMIN") {
+                            call.respond(
+                                HttpStatusCode.Forbidden,
+                                MessageResponse("Admin access required to delete product images")
+                            )
+                            return@delete
+                        }
+
+                        val imageId = call.parameters["imageId"]?.toIntOrNull()
+                            ?: return@delete call.respond(HttpStatusCode.BadRequest, "Invalid image ID")
+
+                        productRepository.deleteProductImage(imageId)
+                        call.respond(HttpStatusCode.NoContent)
+                    }
+
+                    // Admin-only: Set primary image
+                    put("/{imageId}/primary") {
+                        // Admin permission check
+                        val principal = call.principal<JWTPrincipal>()
+                        val role = principal?.getClaim("role", String::class) ?: ""
+
+                        if (role != "ADMIN") {
+                            call.respond(
+                                HttpStatusCode.Forbidden,
+                                MessageResponse("Admin access required to set primary product image")
+                            )
+                            return@put
+                        }
+
+                        val productId = call.parameters["productId"]?.toIntOrNull()
+                            ?: return@put call.respond(HttpStatusCode.BadRequest, "Invalid product ID")
+
+                        val imageId = call.parameters["imageId"]?.toIntOrNull()
+                            ?: return@put call.respond(HttpStatusCode.BadRequest, "Invalid image ID")
+
+                        productRepository.setProductPrimaryImage(imageId, productId)
+                        call.respond(HttpStatusCode.OK)
+                    }
                 }
             }
         }
