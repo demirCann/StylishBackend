@@ -15,8 +15,7 @@ object TestData {
             firstName: String = "Test",
             lastName: String = "User",
             phoneNumber: String = "1234567890",
-            registrationDate: LocalDateTime = LocalDateTime.now(),
-            isActive: Boolean = true
+            registrationDate: LocalDateTime = LocalDateTime.now()
         ) = User(
             id = id,
             email = email,

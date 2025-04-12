@@ -3,162 +3,193 @@ package demircandemir.com.infrastructure.persistence
 import demircandemir.com.domain.model.Category
 import demircandemir.com.infrastructure.persistence.repository.CategoryRepositoryImpl
 import demircandemir.com.infrastructure.persistence.tables.Categories
+import demircandemir.com.testutils.TestData
 import kotlinx.coroutines.runBlocking
-import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class CategoryRepositoryTest {
+class CategoryRepositoryTest : BaseRepositoryTest() {
     private lateinit var repository: CategoryRepositoryImpl
-    private lateinit var testCategory: Category
+
+    // Test data objects will be created within @BeforeEach
+    private var testParentCategoryId: Int = 0
+    private var testSubCategoryId: Int = 0
+    private lateinit var testParentCategory: Category
     private lateinit var testSubCategory: Category
 
-    companion object {
-        @BeforeAll
-        @JvmStatic
-        fun setupDatabase() {
-            TestDatabaseFactory.initTestDatabase()
-            transaction {
-                SchemaUtils.create(Categories)
-            }
-        }
-    }
+    // @BeforeAll inherited from BaseRepositoryTest
 
     @BeforeEach
-    fun setupTestData() {
+    fun setupTestRepositoriesAndData() {
+        // BaseRepositoryTest's @BeforeEach (cleanDataBeforeTest) runs first
+        super.logger.info("Setting up repository and test data for CategoryRepositoryTest")
         repository = CategoryRepositoryImpl()
+
+        // Data cleaning is handled by the base class @BeforeEach
+
+        // Create a standard parent and subcategory for use in multiple tests
         transaction {
-            SchemaUtils.drop(Categories)
-            SchemaUtils.create(Categories)
+            val parentCategoryData = TestData.Categories.createTestCategory(categoryName = "Parent Category")
+            val parentResult = Categories.insert {
+                it[categoryName] = parentCategoryData.categoryName
+                it[description] = parentCategoryData.description
+            }
+            testParentCategoryId = parentResult[Categories.id].value
+            testParentCategory = parentCategoryData.copy(id = testParentCategoryId)
+
+            val subCategoryData = TestData.Categories.createTestCategory(
+                categoryName = "Sub Category",
+                parentCategoryId = testParentCategoryId
+            )
+            val subResult = Categories.insert {
+                it[categoryName] = subCategoryData.categoryName
+                it[description] = subCategoryData.description
+                it[parentCategoryId] = subCategoryData.parentCategoryId
+            }
+            testSubCategoryId = subResult[Categories.id].value
+            testSubCategory = subCategoryData.copy(id = testSubCategoryId)
         }
-
-        testCategory = Category(
-            categoryName = "Test Category",
-            description = "Test Description"
-        )
-
-        testSubCategory = Category(
-            categoryName = "Test Sub Category",
-            description = "Test Sub Description",
-            parentCategoryId = 1
-        )
     }
+
+    // @AfterAll inherited from BaseRepositoryTest
 
     @Test
     fun `createCategory should create a new category`() = runBlocking {
-        val createdCategory = repository.createCategory(testCategory)
-        assertEquals(testCategory.categoryName, createdCategory.categoryName)
-        assertEquals(testCategory.description, createdCategory.description)
+        val newCategoryData = TestData.Categories.createTestCategory(categoryName = "New Unique Category")
+        val createdCategory = repository.createCategory(newCategoryData)
+        assertEquals(newCategoryData.categoryName, createdCategory.categoryName)
+        assertEquals(newCategoryData.description, createdCategory.description)
         assertTrue(createdCategory.id > 0)
+        assertNotEquals(testParentCategoryId, createdCategory.id)
+        assertNotEquals(testSubCategoryId, createdCategory.id)
     }
 
     @Test
     fun `getCategoryById should return category when exists`() = runBlocking {
-        val createdCategory = repository.createCategory(testCategory)
-        val retrievedCategory = repository.getCategoryById(createdCategory.id)
-        assertEquals(createdCategory.id, retrievedCategory?.id)
-        assertEquals(createdCategory.categoryName, retrievedCategory?.categoryName)
+        val retrievedParent = repository.getCategoryById(testParentCategoryId)
+        assertNotNull(retrievedParent)
+        assertEquals(testParentCategoryId, retrievedParent.id)
+        assertEquals(testParentCategory.categoryName, retrievedParent.categoryName)
+
+        val retrievedSub = repository.getCategoryById(testSubCategoryId)
+        assertNotNull(retrievedSub)
+        assertEquals(testSubCategoryId, retrievedSub.id)
+        assertEquals(testSubCategory.categoryName, retrievedSub.categoryName)
+        assertEquals(testParentCategoryId, retrievedSub.parentCategoryId)
     }
 
     @Test
     fun `getCategoryById should return null when category does not exist`() = runBlocking {
-        val retrievedCategory = repository.getCategoryById(999)
+        val retrievedCategory = repository.getCategoryById(99999)
         assertNull(retrievedCategory)
     }
 
     @Test
     fun `updateCategory should update existing category`() = runBlocking {
-        val createdCategory = repository.createCategory(testCategory)
-        val updatedCategory = createdCategory.copy(
-            categoryName = "Updated Category",
+        val retrievedParent = repository.getCategoryById(testParentCategoryId)
+        assertNotNull(retrievedParent)
+
+        val updatedCategoryData = retrievedParent.copy(
+            categoryName = "Updated Parent Category",
             description = "Updated Description"
         )
-        val result = repository.updateCategory(updatedCategory)
-        assertEquals("Updated Category", result.categoryName)
+        val result = repository.updateCategory(updatedCategoryData)
+        assertEquals("Updated Parent Category", result.categoryName)
         assertEquals("Updated Description", result.description)
+        assertEquals(testParentCategoryId, result.id) // ID should not change
     }
 
     @Test
     fun `deleteCategory should delete existing category`() = runBlocking {
-        val createdCategory = repository.createCategory(testCategory)
-        repository.deleteCategory(createdCategory.id)
-        val deletedCategory = repository.getCategoryById(createdCategory.id)
-        assertNull(deletedCategory)
+        // Create a separate category to delete to avoid interfering with other tests using the default ones
+        val categoryToDeleteData = TestData.Categories.createTestCategory(categoryName = "To Be Deleted")
+        val createdCategory = repository.createCategory(categoryToDeleteData)
+        val categoryIdToDelete = createdCategory.id
+
+        assertNotNull(repository.getCategoryById(categoryIdToDelete)) // Verify it exists
+        repository.deleteCategory(categoryIdToDelete)
+        val deletedCategory = repository.getCategoryById(categoryIdToDelete)
+        assertNull(deletedCategory, "Category should be null after deletion")
     }
 
     @Test
     fun `getAllCategories should return all categories`() = runBlocking {
-        val category1 = repository.createCategory(testCategory)
-        val category2 = repository.createCategory(testCategory.copy(categoryName = "Second Category"))
+        // We start with 2 categories created in @BeforeEach
         val categories = repository.getAllCategories()
-        assertEquals(2, categories.size)
-        assertTrue(categories.any { it.id == category1.id })
-        assertTrue(categories.any { it.id == category2.id })
+        assertEquals(2, categories.size, "Should have 2 categories from setup")
+        assertTrue(categories.any { it.id == testParentCategoryId }, "Parent category missing")
+        assertTrue(categories.any { it.id == testSubCategoryId }, "Sub category missing")
     }
 
     @Test
     fun `getRootCategories should return only categories without parent`() = runBlocking {
-        val rootCategory = repository.createCategory(testCategory)
-        val subCategory = repository.createCategory(testSubCategory)
+        // We start with 1 root (parent) and 1 sub category
         val rootCategories = repository.getRootCategories()
-        assertEquals(1, rootCategories.size)
-        assertEquals(rootCategory.id, rootCategories[0].id)
+        assertEquals(1, rootCategories.size, "Should only find 1 root category")
+        assertEquals(testParentCategoryId, rootCategories[0].id)
     }
 
     @Test
     fun `getSubcategories should return child categories`() = runBlocking {
-        val parentCategory = repository.createCategory(testCategory)
-        val subCategory = repository.createCategory(testSubCategory.copy(parentCategoryId = parentCategory.id))
-        val subCategories = repository.getSubcategories(parentCategory.id)
-        assertEquals(1, subCategories.size)
-        assertEquals(subCategory.id, subCategories[0].id)
+        // We check the subcategories of the parent created in setup
+        val subCategories = repository.getSubcategories(testParentCategoryId)
+        assertEquals(1, subCategories.size, "Parent should have 1 subcategory")
+        assertEquals(testSubCategoryId, subCategories[0].id)
     }
 
     @Test
     fun `getCategoryTreeStructure should return complete category hierarchy`() = runBlocking {
-        val rootCategory = repository.createCategory(testCategory)
-        val subCategory = repository.createCategory(testSubCategory.copy(parentCategoryId = rootCategory.id))
-        val subSubCategory = repository.createCategory(
-            testSubCategory.copy(
-                categoryName = "Sub Sub Category",
-                parentCategoryId = subCategory.id
-            )
+        // Create one more level
+        val subSubCategoryData = TestData.Categories.createTestCategory(
+            categoryName = "Sub Sub Category",
+            parentCategoryId = testSubCategoryId
         )
+        val createdSubSub = repository.createCategory(subSubCategoryData)
 
         val categoryTree = repository.getCategoryTreeStructure()
-        assertEquals(1, categoryTree.size) // Only root categories
-        assertEquals(1, categoryTree[0].subCategories.size) // One subcategory
-        assertEquals(1, categoryTree[0].subCategories[0].subCategories.size) // One sub-subcategory
+
+        assertEquals(1, categoryTree.size, "Should only be 1 root category in the tree")
+        val rootNode = categoryTree[0]
+        assertEquals(testParentCategoryId, rootNode.id)
+
+        assertEquals(1, rootNode.subCategories.size, "Root should have 1 subcategory")
+        val subNode = rootNode.subCategories[0]
+        assertEquals(testSubCategoryId, subNode.id)
+
+        assertEquals(1, subNode.subCategories.size, "Subcategory should have 1 sub-subcategory")
+        val subSubNode = subNode.subCategories[0]
+        assertEquals(createdSubSub.id, subSubNode.id)
+        assertTrue(subSubNode.subCategories.isEmpty(), "Sub-subcategory should have no children")
     }
 
     @Test
     fun `getCategoryByIdWithSubcategories should return category with its hierarchy`() = runBlocking {
-        val parentCategory = repository.createCategory(testCategory)
-        val subCategory = repository.createCategory(testSubCategory.copy(parentCategoryId = parentCategory.id))
-
-        val categoryWithSubcategories = repository.getCategoryByIdWithSubcategories(parentCategory.id)
-        assertTrue(categoryWithSubcategories != null)
-        assertEquals(1, categoryWithSubcategories.subCategories.size)
-        assertEquals(subCategory.id, categoryWithSubcategories.subCategories[0].id)
+        // Uses the parent and subcategory created in setup
+        val categoryWithSubcategories = repository.getCategoryByIdWithSubcategories(testParentCategoryId)
+        assertNotNull(categoryWithSubcategories, "Parent category should be found")
+        assertEquals(1, categoryWithSubcategories.subCategories.size, "Parent should have 1 subcategory fetched")
+        assertEquals(testSubCategoryId, categoryWithSubcategories.subCategories[0].id)
     }
 
     @Test
-    fun `deleteCategory should handle subcategories correctly`() = runBlocking {
-        val parentCategory = repository.createCategory(testCategory)
-        val subCategory = repository.createCategory(testSubCategory.copy(parentCategoryId = parentCategory.id))
+    fun `deleteCategory should handle subcategories correctly by setting parent to null`() = runBlocking {
+        // Uses the parent and subcategory created in setup
+        assertNotNull(repository.getCategoryById(testParentCategoryId))
+        assertNotNull(repository.getCategoryById(testSubCategoryId))
 
-        repository.deleteCategory(parentCategory.id)
+        repository.deleteCategory(testParentCategoryId)
 
+        // Parent should be gone
+        assertNull(repository.getCategoryById(testParentCategoryId), "Parent category should be deleted")
+        
         // Subcategory should still exist but with null parent
-        val updatedSubCategory = repository.getCategoryById(subCategory.id)
-        assertTrue(updatedSubCategory != null)
-        assertNull(updatedSubCategory.parentCategoryId)
+        val updatedSubCategory = repository.getCategoryById(testSubCategoryId)
+        assertNotNull(updatedSubCategory, "Subcategory should still exist after parent deletion")
+        assertNull(updatedSubCategory.parentCategoryId, "Subcategory's parent ID should be null after parent deletion")
     }
 } 

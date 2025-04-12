@@ -1,16 +1,15 @@
 package demircandemir.com.infrastructure.persistence
 
+import demircandemir.com.domain.model.AccountStatus
 import demircandemir.com.domain.model.Cart
 import demircandemir.com.domain.model.CartItem
 import demircandemir.com.infrastructure.persistence.repository.CartItemRepositoryImpl
 import demircandemir.com.infrastructure.persistence.repository.CartRepositoryImpl
 import demircandemir.com.infrastructure.persistence.tables.*
 import kotlinx.coroutines.runBlocking
-import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -22,7 +21,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class CartItemRepositoryTest {
+class CartItemRepositoryTest : BaseRepositoryTest() {
     private lateinit var repository: CartItemRepositoryImpl
     private lateinit var cartRepository: CartRepositoryImpl
     private lateinit var testCartItem: CartItem
@@ -32,50 +31,34 @@ class CartItemRepositoryTest {
     private var testColorId: Int = 0
     private var testSizeId: Int = 0
 
-    companion object {
-        @BeforeAll
-        @JvmStatic
-        fun setupDatabase() {
-            TestDatabaseFactory.initTestDatabase()
-            transaction {
-                SchemaUtils.create(CartItems, Carts, Products, Users, Categories, Colors, Sizes)
-            }
-        }
-    }
-
     @BeforeEach
-    fun setupTestData() {
+    fun setupTestRepositoriesAndData() {
+        super.logger.info("Setting up repository and test data for CartItemRepositoryTest")
         repository = CartItemRepositoryImpl()
         cartRepository = CartRepositoryImpl()
 
         transaction {
-            // Cleaning
             CartItems.deleteAll()
             Carts.deleteAll()
-            Products.deleteAll()
-            Colors.deleteAll()
-            Sizes.deleteAll()
+        }
 
-            // Creating user for tests
+        transaction {
             val userId = Users.insert {
                 it[firstName] = "CartItem"
                 it[lastName] = "User"
                 it[email] = "cartItem.user.${System.currentTimeMillis()}@example.com"
-                it[password] = "password"
+                it[passwordHash] = "password"
                 it[registrationDate] = LocalDateTime.now()
-                it[isActive] = true
+                it[status] = AccountStatus.ACTIVE
             } get Users.id
-
             testUserId = userId.value
 
-            // Create a category for product
             val categoryEntityId = Categories.insert {
                 it[categoryName] = "Test Category"
                 it[description] = "Test Description"
                 it[parentCategoryId] = null
             } get Categories.id
 
-            // Create a product
             val productId = Products.insert {
                 it[productName] = "Test Product"
                 it[description] = "Test Product Description"
@@ -86,25 +69,21 @@ class CartItemRepositoryTest {
                 it[dateAdded] = LocalDateTime.now()
                 it[isActive] = true
             } get Products.id
-
             testProductId = productId.value
 
-            // Create color and size
             val colorId = Colors.insert {
                 it[colorName] = "Test Color"
                 it[hexCode] = "#FFFFFF"
             } get Colors.id
+            testColorId = colorId.value
 
             val sizeId = Sizes.insert {
                 it[sizeName] = "Test Size"
                 it[sizeType] = "Test Size Type"
             } get Sizes.id
-
-            testColorId = colorId.value
             testSizeId = sizeId.value
         }
 
-        // Create cart
         runBlocking {
             val cart = Cart(
                 userId = testUserId,
@@ -112,12 +91,9 @@ class CartItemRepositoryTest {
                 createdAt = LocalDateTime.now(),
                 updatedAt = LocalDateTime.now()
             )
-
-            val createCartResult = cartRepository.create(cart)
-            testCartId = createCartResult.getOrNull()?.id ?: throw AssertionError("Failed to create test cart")
+            testCartId = cartRepository.create(cart).getOrThrow().id
         }
 
-        // Prepare cart item
         testCartItem = CartItem(
             cartId = testCartId,
             productId = testProductId,
@@ -140,13 +116,14 @@ class CartItemRepositoryTest {
             assertEquals(testColorId, createdItem.colorId)
             assertEquals(BigDecimal("50.00"), createdItem.unitPrice)
             assertTrue(createdItem.id > 0)
+        }.onFailure {
+            throw AssertionError("Test failed: ${it.message}", it)
         }
     }
 
     @Test
     fun `findById should return cart item when exists`(): Unit = runBlocking {
-        val createResult = repository.create(testCartItem)
-        val itemId = createResult.getOrNull()?.id ?: 0
+        val itemId = repository.create(testCartItem).getOrThrow().id
 
         val result = repository.findById(itemId)
         result.onSuccess { item ->
@@ -154,6 +131,8 @@ class CartItemRepositoryTest {
             assertEquals(itemId, item.id)
             assertEquals(testCartId, item.cartId)
             assertEquals(testProductId, item.productId)
+        }.onFailure {
+            throw AssertionError("Test failed: ${it.message}", it)
         }
     }
 
@@ -162,24 +141,28 @@ class CartItemRepositoryTest {
         val result = repository.findById(999)
         result.onSuccess { item ->
             assertNull(item)
+        }.onFailure {
+            throw AssertionError("Test failed: ${it.message}", it)
         }
     }
 
     @Test
     fun `findByCartId should return all items in a cart`(): Unit = runBlocking {
-        repository.create(testCartItem)
-        repository.create(testCartItem.copy(productId = testProductId))
+        repository.create(testCartItem).getOrThrow()
+        repository.create(testCartItem.copy(quantity = 3)).getOrThrow()
 
         val result = repository.findByCartId(testCartId)
         result.onSuccess { items ->
             assertEquals(2, items.size)
             assertTrue(items.all { it.cartId == testCartId })
+        }.onFailure {
+            throw AssertionError("Test failed: ${it.message}", it)
         }
     }
 
     @Test
     fun `findByCartIdAndProductId should return item when exists`(): Unit = runBlocking {
-        repository.create(testCartItem)
+        repository.create(testCartItem).getOrThrow()
 
         val result = repository.findByCartIdAndProductId(
             cartId = testCartId,
@@ -194,6 +177,8 @@ class CartItemRepositoryTest {
             assertEquals(testProductId, item.productId)
             assertEquals(testSizeId, item.sizeId)
             assertEquals(testColorId, item.colorId)
+        }.onFailure {
+            throw AssertionError("Test failed: ${it.message}", it)
         }
     }
 
@@ -208,42 +193,49 @@ class CartItemRepositoryTest {
 
         result.onSuccess { item ->
             assertNull(item)
+        }.onFailure {
+            throw AssertionError("Test failed: ${it.message}", it)
         }
     }
 
     @Test
     fun `update should update existing cart item`(): Unit = runBlocking {
-        val createResult = repository.create(testCartItem)
-        val createdItem = createResult.getOrNull() ?: throw AssertionError("Failed to create test cart item")
+        val createdItem = repository.create(testCartItem).getOrThrow()
 
-        val updatedItem = createdItem.copy(
+        val newSizeId = transaction {
+            Sizes.insert { it[sizeName] = "New Size"; it[sizeType] = "Update" } get Sizes.id
+        }.value
+
+        val updatedItemData = createdItem.copy(
             quantity = 5,
-            sizeId = testSizeId + 1
+            sizeId = newSizeId
         )
 
-        val updateResult = repository.update(updatedItem)
+        val updateResult = repository.update(updatedItemData)
         updateResult.onSuccess { item ->
             assertEquals(5, item.quantity)
-            assertEquals(testSizeId + 1, item.sizeId)
+            assertEquals(newSizeId, item.sizeId)
+        }.onFailure {
+            throw AssertionError("Test failed: ${it.message}", it)
         }
     }
 
     @Test
     fun `updateQuantity should change cart item quantity`(): Unit = runBlocking {
-        val createResult = repository.create(testCartItem)
-        val itemId = createResult.getOrNull()?.id ?: 0
+        val itemId = repository.create(testCartItem).getOrThrow().id
 
         val result = repository.updateQuantity(itemId, 10)
         result.onSuccess { updatedItem ->
             assertNotNull(updatedItem)
             assertEquals(10, updatedItem.quantity)
+        }.onFailure {
+            throw AssertionError("Test failed: ${it.message}", it)
         }
     }
 
     @Test
     fun `delete should remove a cart item`(): Unit = runBlocking {
-        val createResult = repository.create(testCartItem)
-        val itemId = createResult.getOrNull()?.id ?: 0
+        val itemId = repository.create(testCartItem).getOrThrow().id
 
         val result = repository.delete(itemId)
         result.onSuccess { success ->
@@ -252,14 +244,18 @@ class CartItemRepositoryTest {
             val deletedItemResult = repository.findById(itemId)
             deletedItemResult.onSuccess { item ->
                 assertNull(item)
+            }.onFailure {
+                throw AssertionError("Failed to check deleted item: ${it.message}", it)
             }
+        }.onFailure {
+            throw AssertionError("Test failed: ${it.message}", it)
         }
     }
 
     @Test
     fun `deleteByCartId should remove all items in a cart`(): Unit = runBlocking {
-        repository.create(testCartItem)
-        repository.create(testCartItem.copy(productId = testProductId))
+        repository.create(testCartItem).getOrThrow()
+        repository.create(testCartItem.copy(quantity = 1)).getOrThrow()
 
         val result = repository.deleteByCartId(testCartId)
         result.onSuccess { deletedCount ->
@@ -268,19 +264,25 @@ class CartItemRepositoryTest {
             val remainingItemsResult = repository.findByCartId(testCartId)
             remainingItemsResult.onSuccess { items ->
                 assertTrue(items.isEmpty())
+            }.onFailure {
+                throw AssertionError("Failed to check remaining items: ${it.message}", it)
             }
+        }.onFailure {
+            throw AssertionError("Test failed: ${it.message}", it)
         }
     }
 
     @Test
     fun `countByCartId should return correct item count`(): Unit = runBlocking {
-        repository.create(testCartItem)
-        repository.create(testCartItem.copy(productId = testProductId))
-        repository.create(testCartItem.copy(productId = testProductId))
+        repository.create(testCartItem).getOrThrow()
+        repository.create(testCartItem.copy(quantity = 1)).getOrThrow()
+        repository.create(testCartItem.copy(quantity = 5)).getOrThrow()
 
         val result = repository.countByCartId(testCartId)
         result.onSuccess { count ->
             assertEquals(3, count)
+        }.onFailure {
+            throw AssertionError("Test failed: ${it.message}", it)
         }
     }
 } 
