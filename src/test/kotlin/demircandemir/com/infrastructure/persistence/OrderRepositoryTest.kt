@@ -2,13 +2,13 @@ package demircandemir.com.infrastructure.persistence
 
 import demircandemir.com.domain.model.Order
 import demircandemir.com.infrastructure.persistence.repository.OrderRepositoryImpl
-import demircandemir.com.infrastructure.persistence.tables.*
+import demircandemir.com.infrastructure.persistence.tables.Addresses
+import demircandemir.com.infrastructure.persistence.tables.OrderStatus
+import demircandemir.com.infrastructure.persistence.tables.Users
+import demircandemir.com.testutils.TestData
 import kotlinx.coroutines.runBlocking
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -17,55 +17,45 @@ import java.time.LocalDateTime
 import kotlin.test.*
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class OrderRepositoryTest {
+class OrderRepositoryTest : BaseRepositoryTest() {
     private lateinit var repository: OrderRepositoryImpl
     private lateinit var testOrder: Order
     private var testUserId: Int = 0
     private var testAddressId: Int = 0
 
-    companion object {
-        @BeforeAll
-        @JvmStatic
-        fun setupDatabase() {
-            TestDatabaseFactory.initTestDatabase()
-            transaction {
-                SchemaUtils.create(Orders, Users, Addresses)
-            }
-        }
-    }
-
     @BeforeEach
-    fun setupTestData() {
+    fun setupTestRepositoriesAndData() {
+        // BaseRepositoryTest's @BeforeEach (cleanDataBeforeTest) runs first
+        super.logger.info("Setting up repository and test data for OrderRepositoryTest") 
         repository = OrderRepositoryImpl()
+
+        // Create necessary prerequisite data (User, Address) for Order tests
         transaction {
-            // Cleaning
-            OrderItems.deleteAll()
-            Orders.deleteAll()
+            val user = TestData.Users.createTestUser(email = "order.user.${System.currentTimeMillis()}@example.com")
+            val createdUserResult = Users.insert {
+                it[firstName] = user.firstName
+                it[lastName] = user.lastName
+                it[email] = user.email
+                it[passwordHash] = user.passwordHash
+                it[registrationDate] = user.registrationDate
+                it[status] = user.status
+            }
+            testUserId = createdUserResult[Users.id].value
 
-            // Creating user and address for tests
-            val userId = Users.insert {
-                it[firstName] = "Test"
-                it[lastName] = "User"
-                it[email] = "test.user.${System.currentTimeMillis()}@example.com"
-                it[password] = "password"
-                it[registrationDate] = LocalDateTime.now()
-                it[isActive] = true
-            } get Users.id
-
-            val addressId = Addresses.insert {
-                it[this.userId] = userId
-                it[addressTitle] = "Test Address"
-                it[address] = "123 Test St"
-                it[city] = "Test City"
-                it[district] = "Test District"
-                it[postalCode] = "12345"
-                it[country] = "Test Country"
-            } get Addresses.id
-
-            testUserId = userId.value
-            testAddressId = addressId.value
+            val address = TestData.Addresses.createTestAddress(userId = testUserId)
+            val createdAddressResult = Addresses.insert {
+                it[userId] = address.userId
+                it[addressTitle] = address.addressTitle
+                it[this.address] = address.address
+                it[city] = address.city
+                it[district] = address.district
+                it[postalCode] = address.postalCode
+                it[country] = address.country
+            }
+            testAddressId = createdAddressResult[Addresses.id].value
         }
 
+        // Initialize the main test object for this class
         testOrder = Order(
             userId = testUserId,
             addressId = testAddressId,

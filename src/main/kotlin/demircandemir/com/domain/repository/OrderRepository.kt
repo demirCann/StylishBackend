@@ -9,6 +9,7 @@ interface OrderRepository {
     suspend fun findByUserId(userId: Int): Result<List<Order>>
     suspend fun update(order: Order): Result<Order>
     suspend fun updateStatus(orderId: Int, status: OrderStatus): Result<Boolean>
+    suspend fun updateTracking(orderId: Int, trackingNumber: String, shippingProvider: String): Result<Boolean>
     suspend fun delete(id: Int): Result<Boolean>
     suspend fun findByStatus(status: OrderStatus): Result<List<Order>>
     suspend fun findByTrackingNumber(trackingNumber: String): Result<Order?>

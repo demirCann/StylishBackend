@@ -21,7 +21,6 @@ object TestDatabaseFactory {
             password = ""
         )
 
-        // Exposed üzerinden tabloları oluştur
         transaction(testDatabase) {
             SchemaUtils.create(
                 Users,

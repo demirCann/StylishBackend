@@ -1,44 +1,27 @@
 package demircandemir.com.infrastructure.persistence
 
+import demircandemir.com.domain.model.AccountStatus
+import demircandemir.com.infrastructure.persistence.repository.RefreshTokenRepositoryImpl
 import demircandemir.com.infrastructure.persistence.repository.UserRepositoryImpl
-import demircandemir.com.infrastructure.persistence.tables.Addresses
-import demircandemir.com.infrastructure.persistence.tables.Users
 import demircandemir.com.testutils.TestData
 import kotlinx.coroutines.runBlocking
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.junit.After
-import org.junit.Before
-import org.junit.Test
-import org.slf4j.LoggerFactory
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import java.time.LocalDateTime
+import java.util.*
+import kotlin.test.*
 
-class UserRepositoryImplTest {
-    private val logger = LoggerFactory.getLogger(this::class.java)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class UserRepositoryImplTest : BaseRepositoryTest() {
     private lateinit var userRepository: UserRepositoryImpl
+    private lateinit var refreshTokenRepository: RefreshTokenRepositoryImpl
 
-    @Before
-    fun setUp() {
-        // Initialize H2 in-memory database for testing
-        TestDatabaseFactory.initTestDatabase()
-
-        // Create tables
-        transaction {
-            SchemaUtils.create(Users, Addresses)
-        }
-
+    @BeforeEach
+    fun setupTestRepositories() {
+        logger.info("Setting up repositories for UserRepositoryImplTest")
         userRepository = UserRepositoryImpl()
-    }
-
-    @After
-    fun tearDown() {
-        logger.info("Cleaning up test database")
-
-        transaction {
-            SchemaUtils.drop(Users, Addresses)
-        }
+        refreshTokenRepository = RefreshTokenRepositoryImpl()
     }
 
     @Test
@@ -122,5 +105,138 @@ class UserRepositoryImplTest {
 
         // Then
         assertEquals(2, retrievedAddresses.size)
+    }
+
+    // Authentication-related tests moved from UserRepositoryTest
+
+    @Test
+    fun `test update last login date`(): Unit = runBlocking {
+        // Given
+        val user = TestData.Users.createTestUser()
+        val createdUser = userRepository.createUser(user)
+
+        // When
+        val result = userRepository.updateLoginStats(createdUser.id, false)
+
+        // Then
+        assertTrue(result)
+        val updatedUser = userRepository.getUserById(createdUser.id)
+        assertNotNull(updatedUser)
+        assertNotNull(updatedUser.lastLoginDate)
+    }
+
+    @Test
+    fun `test update failed login attempts`(): Unit = runBlocking {
+        // Given
+        val user = TestData.Users.createTestUser()
+        val createdUser = userRepository.createUser(user)
+
+        // When
+        val result = userRepository.updateLoginStats(
+            createdUser.id,
+            true
+        )
+
+        // Then
+        assertTrue(result)
+        val updatedUser = userRepository.getUserById(createdUser.id)
+        assertNotNull(updatedUser)
+        assertEquals(1, updatedUser.failedLoginAttempts)
+        assertNotNull(updatedUser.lastFailedLoginAttempt)
+    }
+
+    @Test
+    fun `test create and validate refresh token`() = runBlocking {
+        // Given
+        val user = TestData.Users.createTestUser()
+        val createdUser = userRepository.createUser(user)
+        val refreshToken = UUID.randomUUID().toString()
+        val expiresAt = LocalDateTime.now().plusDays(7)
+
+        // When
+        val createdToken = refreshTokenRepository.createToken(createdUser.id, refreshToken, expiresAt)
+        val foundToken = refreshTokenRepository.findByToken(refreshToken)
+
+        // Then
+        assertNotNull(createdToken)
+        assertNotNull(foundToken)
+        assertEquals(createdUser.id, foundToken.userId)
+        assertEquals(refreshToken, foundToken.token)
+        assertFalse(foundToken.isRevoked)
+    }
+
+    @Test
+    fun `test revoke refresh token`() = runBlocking {
+        // Given
+        val user = TestData.Users.createTestUser()
+        val createdUser = userRepository.createUser(user)
+        val refreshToken = UUID.randomUUID().toString()
+        val expiresAt = LocalDateTime.now().plusDays(7)
+        refreshTokenRepository.createToken(createdUser.id, refreshToken, expiresAt)
+
+        // When
+        val result = refreshTokenRepository.revokeToken(refreshToken)
+
+        // Then
+        assertTrue(result)
+        val foundToken = refreshTokenRepository.findByToken(refreshToken)
+        assertNotNull(foundToken)
+        assertTrue(foundToken.isRevoked)
+    }
+
+    @Test
+    fun `test update password reset token`() = runBlocking {
+        // Given
+        val user = TestData.Users.createTestUser()
+        val createdUser = userRepository.createUser(user)
+        val resetToken = UUID.randomUUID().toString()
+        val expiryDate = LocalDateTime.now().plusHours(1)
+
+        // When
+        val result = userRepository.createPasswordResetToken(createdUser.email, resetToken, expiryDate)
+
+        // Then
+        assertTrue(result)
+        val updatedUser = userRepository.getUserById(createdUser.id)
+        assertNotNull(updatedUser)
+        assertEquals(resetToken, updatedUser.passwordResetToken)
+        assertEquals(expiryDate, updatedUser.passwordResetTokenExpiry)
+    }
+
+    @Test
+    fun `test update verification token`() = runBlocking {
+        // Given
+        val user = TestData.Users.createTestUser()
+        val createdUser = userRepository.createUser(user)
+        val verificationToken = UUID.randomUUID().toString()
+
+        // When
+        // Directly update the user with the verification token
+        val updatedUser = userRepository.updateUser(
+            createdUser.copy(verificationToken = verificationToken)
+        )
+
+        // Then
+        assertEquals(verificationToken, updatedUser.verificationToken)
+        val retrievedUser = userRepository.getUserById(createdUser.id)
+        assertNotNull(retrievedUser)
+        assertEquals(verificationToken, retrievedUser.verificationToken)
+    }
+
+    @Test
+    fun `test update account status`() = runBlocking {
+        // Given
+        val user = TestData.Users.createTestUser()
+        val createdUser = userRepository.createUser(user)
+        val newStatus = AccountStatus.LOCKED
+
+        // When
+        val result = userRepository.updateUserStatus(createdUser.id, newStatus)
+
+        // Then
+        assertTrue(result)
+        val updatedUser = userRepository.getUserById(createdUser.id)
+        assertNotNull(updatedUser)
+        assertEquals(newStatus, updatedUser.status)
     }
 } 

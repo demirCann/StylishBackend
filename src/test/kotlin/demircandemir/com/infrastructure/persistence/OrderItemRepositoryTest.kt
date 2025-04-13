@@ -3,12 +3,10 @@ package demircandemir.com.infrastructure.persistence
 import demircandemir.com.domain.model.OrderItem
 import demircandemir.com.infrastructure.persistence.repository.OrderItemRepositoryImpl
 import demircandemir.com.infrastructure.persistence.tables.*
+import demircandemir.com.testutils.TestData
 import kotlinx.coroutines.runBlocking
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -20,7 +18,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class OrderItemRepositoryTest {
+class OrderItemRepositoryTest : BaseRepositoryTest() {
     private lateinit var repository: OrderItemRepositoryImpl
     private lateinit var testOrderItem: OrderItem
     private var testOrderId: Int = 0
@@ -28,81 +26,67 @@ class OrderItemRepositoryTest {
     private var testSizeId: Int? = null
     private var testColorId: Int? = null
 
-    companion object {
-        @BeforeAll
-        @JvmStatic
-        fun setupDatabase() {
-            TestDatabaseFactory.initTestDatabase()
-            transaction {
-                SchemaUtils.create(
-                    Orders, OrderItems, Users, Addresses,
-                    Products, Categories, Sizes, Colors
-                )
-            }
-        }
-    }
-
     @BeforeEach
-    fun setupTestData() {
+    fun setupTestRepositoriesAndData() {
+        super.logger.info("Setting up repository and test data for OrderItemRepositoryTest")
         repository = OrderItemRepositoryImpl()
+
         transaction {
-            // Temizleme işlemleri
-            OrderItems.deleteAll()
-            Orders.deleteAll()
-            Products.deleteAll()
+            val user = TestData.Users.createTestUser(email = "orderitem.user.${System.currentTimeMillis()}@example.com")
+            val createdUserResult = Users.insert {
+                it[firstName] = user.firstName
+                it[lastName] = user.lastName
+                it[email] = user.email
+                it[passwordHash] = user.passwordHash
+                it[registrationDate] = user.registrationDate
+                it[status] = user.status
+            }
+            val userId = createdUserResult[Users.id].value
 
-            // Kullanıcı ve adres oluşturma
-            val userId = Users.insert {
-                it[firstName] = "Test"
-                it[lastName] = "User"
-                it[email] = "test.user.${System.currentTimeMillis()}@example.com"
-                it[password] = "password"
-                it[registrationDate] = LocalDateTime.now()
-                it[isActive] = true
-            } get Users.id
+            val address = TestData.Addresses.createTestAddress(userId = userId)
+            val createdAddressResult = Addresses.insert {
+                it[this.userId] = address.userId
+                it[addressTitle] = address.addressTitle
+                it[this.address] = address.address
+                it[city] = address.city
+                it[district] = address.district
+                it[postalCode] = address.postalCode
+                it[country] = address.country
+            }
+            val addressId = createdAddressResult[Addresses.id].value
 
-            val addressId = Addresses.insert {
-                it[this.userId] = userId
-                it[addressTitle] = "Test Address"
-                it[address] = "123 Test St"
-                it[city] = "Test City"
-                it[district] = "Test District"
-                it[postalCode] = "12345"
-                it[country] = "Test Country"
-            } get Addresses.id
-
-            // Kategori oluşturma
-            val categoryId = Categories.insert {
-                it[categoryName] = "Test Category"
+            val categoryResult = Categories.insert {
+                it[categoryName] = "Test Category for OrderItem"
                 it[description] = "Test Category Description"
-                it[parentCategoryId] = null
-            } get Categories.id
+            }
+            val categoryId = categoryResult[Categories.id].value
 
-            // Ürün oluşturma
-            val productId = Products.insert {
-                it[productName] = "Test Product"
-                it[description] = "Test Product Description"
-                it[price] = BigDecimal("50.00")
-                it[stockQuantity] = 100
-                it[this.categoryId] = categoryId
-                it[brand] = "Test Brand"
-                it[dateAdded] = LocalDateTime.now()
-                it[isActive] = true
-            } get Products.id
+            val product = TestData.Products.createTestProduct(categoryId = categoryId)
+            val createdProductResult = Products.insert {
+                it[productName] = product.productName
+                it[description] = product.description
+                it[price] = product.price
+                it[stockQuantity] = product.stockQuantity
+                it[this.categoryId] = product.categoryId
+                it[brand] = product.brand
+                it[dateAdded] = product.dateAdded
+                it[isActive] = product.isActive
+            }
+            testProductId = createdProductResult[Products.id].value
 
-            // Beden ve renk oluşturma (isteğe bağlı)
-            val sizeId = Sizes.insert {
+            val sizeResult = Sizes.insert {
                 it[sizeName] = "M"
                 it[sizeType] = "Regular"
-            } get Sizes.id
+            }
+            testSizeId = sizeResult[Sizes.id].value
 
-            val colorId = Colors.insert {
+            val colorResult = Colors.insert {
                 it[colorName] = "Red"
                 it[hexCode] = "#FF0000"
-            } get Colors.id
+            }
+            testColorId = colorResult[Colors.id].value
 
-            // Sipariş oluşturma
-            val orderId = Orders.insert {
+            val orderResult = Orders.insert {
                 it[this.userId] = userId
                 it[this.addressId] = addressId
                 it[totalAmount] = BigDecimal("100.00")
@@ -111,12 +95,8 @@ class OrderItemRepositoryTest {
                 it[orderStatus] = OrderStatus.Pending
                 it[trackingNumber] = null
                 it[shippingFee] = BigDecimal("10.00")
-            } get Orders.id
-
-            testOrderId = orderId.value
-            testProductId = productId.value
-            testSizeId = sizeId.value
-            testColorId = colorId.value
+            }
+            testOrderId = orderResult[Orders.id].value
         }
 
         testOrderItem = OrderItem(
@@ -190,7 +170,7 @@ class OrderItemRepositoryTest {
         result.onSuccess { items ->
             assertEquals(2, items.size)
             assertTrue(items.all { it.orderId == testOrderId })
-            assertEquals(5, items.sumOf { it.quantity }) // 2 + 3
+            assertEquals(5, items.sumOf { it.quantity })
         }
     }
 
@@ -218,6 +198,7 @@ class OrderItemRepositoryTest {
 
         val result = repository.updateQuantity(orderItemId, 10)
         result.onSuccess { updatedItem ->
+            assertNotNull(updatedItem, "Updated item should not be null")
             assertEquals(10, updatedItem.quantity)
         }
     }
@@ -271,6 +252,7 @@ class OrderItemRepositoryTest {
         val result = repository.updateQuantity(999, 5)
         result.onFailure { exception ->
             assertNotNull(exception)
+            // Consider adding a more specific check for the exception type or message if needed
         }
     }
-} 
+}
